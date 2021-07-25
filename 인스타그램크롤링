@@ -1,0 +1,105 @@
+import requests
+from bs4 import BeautifulSoup
+#import pymysql
+from selenium import webdriver as wb
+from tqdm import tqdm_notebook as tq
+from selenium.webdriver.common.keys import Keys
+import time as time
+import getpass
+import urllib.request
+import random
+
+from time import sleep
+ 
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+driver = wb.Chrome()
+driver.get("https://www.instagram.com/accounts/login/")
+#driver.maximize_window()
+
+##데이터를 저장할 Dictionary
+insta_dict = {'id':[],
+              'date': [],
+              'like': [],
+              'text': [],
+              'hashtag':[],
+             'src':[]}
+
+#첫 번째 게시물 클릭 
+first_post = driver.find_element_by_class_name('eLAPa')
+first_post.click()
+
+seq = 0
+start = time.time()
+ 
+while True:
+    try:
+        if driver.find_element_by_css_selector('a._65Bje.coreSpriteRightPaginationArrow'):
+            if seq % 50 == 0:
+                print('{}번째 수집 중'.format(seq), time.time() - start, sep = '\t')
+            try:
+                info_id = driver.find_element_by_css_selector('h2._6lAjh').text
+                insta_dict['id'].append(info_id)
+            except:
+                info_id = driver.find_element_by_css_selector('div.C4VMK').text.split()[0]
+                insta_dict['id'].append(info_id)
+ ## 시간정보 수집 
+            time_raw = driver.find_element_by_css_selector('time.FH9sR.Nzb55')
+            time_info = pd.to_datetime(time_raw.get_attribute('datetime')).normalize()
+            insta_dict['date'].append(time_info)
+ ## like 정보 수집
+            try:
+                driver.find_element_by_css_selector('body > div._2dDPU.CkGkG > div.zZYga > div > article > div.eo2As > section.EDfFK.ygqzn > div > div > a > span')
+                like = driver.find_element_by_css_selector('body > div._2dDPU.CkGkG > div.zZYga > div > article > div.eo2As > section.EDfFK.ygqzn > div > div > a > span').text
+                insta_dict['like'].append(like)
+            except:
+                insta_dict['like'].append('영상')
+ ##text 정보수집
+            raw_info = driver.find_element_by_css_selector('div.C4VMK').text.split()
+            text = []
+            for i in range(len(raw_info)):
+                ## 첫번째 text는 아이디니까 제외 
+                if i == 0:
+                    pass
+                ## 두번째부터 시작 
+                else:
+                    if '#' in raw_info[i]:
+                        pass
+                    else:
+                        text.append(raw_info[i])
+            clean_text = ' '.join(text)
+            insta_dict['text'].append(clean_text)
+ ##hashtag 수집
+            raw_tags = driver.find_elements_by_css_selector('a.xil3i')
+            hash_tag = []
+            for i in range(len(raw_tags)):
+                if raw_tags[i].text == '':
+                    pass
+                else:
+                    hash_tag.append(raw_tags[i].text)
+            insta_dict['hashtag'].append(hash_tag)
+            seq += 1
+            
+         # 사진 주소 가져오기   
+            try:
+                image_src_element = driver.find_element_by_css_selector("div._97aPb img")
+                image_src = image_src_element.get_attribute("src")
+                insta_dict['src'].append(image_src)
+        
+            except:
+                insta_dict['src'].append("null")
+            if seq == 8500:
+                break
+            driver.find_element_by_css_selector('a._65Bje.coreSpriteRightPaginationArrow').click()
+            time.sleep(3)
+            
+        else:
+            break
+            
+    except:
+        driver.find_element_by_css_selector('a._65Bje.coreSpriteRightPaginationArrow').click()
+        time.sleep(5)
+        
